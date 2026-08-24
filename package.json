@@ -1,0 +1,26 @@
+{
+  "name": "res360back",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "node --watch app.js",
+    "test": "echo \"No tests configured yet\" && exit 0"
+  },
+  "keywords": [
+    "restaurant",
+    "pos",
+    "backend",
+    "express"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Backend API for Restaurant360 frontend",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "mongoose": "^8.7.4"
+  }
+}
