@@ -1,7 +1,8 @@
 import { sendError, sendSuccess } from '../utils/response.js';
 import { createOrderAndTicket } from '../services/orderService.js';
 import { advanceTicketById, toggleTicketItemCheck } from '../services/kdsService.js';
-
+import Product from "../models/Product.js";
+import Category from "../models/Category.js";
 const menuData = [
   { id: 1, name: 'Paneer Tikka', category: 'Starters', type: 'Veg', price: 280 },
   { id: 2, name: 'Chicken 65', category: 'Starters', type: 'Non-Veg', price: 320 },
@@ -173,53 +174,96 @@ export const getMenuCategories = (req, res) => {
   sendSuccess(res, 200, 'Categories fetched', categories);
 };
 
-export const getProducts = (req, res) => {
-  sendSuccess(res, 200, 'Products fetched', { categories: productCategories, products });
+export const getProducts = async (req, res) => {
+  try {
+    const products = await Product.find().populate("category");
+
+    const categories = await Category.find();
+
+    sendSuccess(res, 200, "Products fetched", {
+      categories,
+      products,
+    });
+
+  } catch (error) {
+    sendError(res, 500, error.message);
+  }
+};
+export const createProduct = async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      price,
+      active = true,
+      sku = "",
+      barcode = "",
+      imageUrl = "",
+      tags = [],
+    } = req.body;
+
+    if (!name || !category || !price) {
+      return sendError(
+        res,
+        400,
+        "Name, Category and Price are required."
+      );
+    }
+
+    const initials = name.substring(0, 2).toUpperCase();
+
+    const product = await Product.create({
+      name,
+      initials,
+      badgeColor: "#14b8a6",
+      category,
+      price,
+      active,
+      sku,
+      barcode,
+      imageUrl,
+      tags,
+    });
+
+    sendSuccess(res, 201, "Product created successfully", product);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
+  }
 };
 
-export const createProduct = (req, res) => {
-  const { name, category, price, active = true } = req.body;
+export const updateProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
 
-  if (!name || !category || price === undefined || price === null || Number(price) <= 0) {
-    return sendError(res, 400, 'Product name, category, and valid price are required.');
+    if (!product) {
+      return sendError(res, 404, "Product not found");
+    }
+
+    sendSuccess(res, 200, "Product updated", product);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
-
-  const newProduct = {
-    id: Date.now(),
-    name,
-    initials: name.slice(0, 2).toUpperCase(),
-    badgeColor: '#14b8a6',
-    category,
-    active,
-    price: Number(price)
-  };
-
-  products.push(newProduct);
-  sendSuccess(res, 201, 'Product created successfully', newProduct);
 };
 
-export const updateProduct = (req, res) => {
-  const { id } = req.params;
-  const index = products.findIndex((item) => item.id === Number(id));
+export const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
 
-  if (index === -1) {
-    return sendError(res, 404, 'Product not found');
+    if (!product) {
+      return sendError(res, 404, "Product not found");
+    }
+
+    sendSuccess(res, 200, "Product deleted", product);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
-
-  products[index] = { ...products[index], ...req.body };
-  sendSuccess(res, 200, 'Product updated', products[index]);
-};
-
-export const deleteProduct = (req, res) => {
-  const { id } = req.params;
-  const index = products.findIndex((item) => item.id === Number(id));
-
-  if (index === -1) {
-    return sendError(res, 404, 'Product not found');
-  }
-
-  const deleted = products.splice(index, 1)[0];
-  sendSuccess(res, 200, 'Product deleted', deleted);
 };
 
 export const getProductCategories = (req, res) => {
