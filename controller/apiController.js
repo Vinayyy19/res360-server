@@ -202,21 +202,23 @@ export const createProduct = async (req, res) => {
       tags = [],
     } = req.body;
 
-    if (!name || !category || !price) {
-      return sendError(
-        res,
-        400,
-        "Name, Category and Price are required."
-      );
+    if (!name || !category || price === undefined) {
+      return sendError(res, 400, "Name, Category and Price are required.");
     }
+    console.log("Request Body:", req.body);
+console.log("Category received:", category);
 
-    const initials = name.substring(0, 2).toUpperCase();
+    const categoryExists = await Category.findById(category);
+
+    if (!categoryExists) {
+      return sendError(res, 400, "Invalid category selected.");
+    }
 
     const product = await Product.create({
       name,
-      initials,
+      initials: name.substring(0, 2).toUpperCase(),
       badgeColor: "#14b8a6",
-      category,
+      category: categoryExists._id,
       price,
       active,
       sku,
@@ -225,9 +227,12 @@ export const createProduct = async (req, res) => {
       tags,
     });
 
-    sendSuccess(res, 201, "Product created successfully", product);
+    const populatedProduct = await Product.findById(product._id).populate("category");
+
+    sendSuccess(res, 201, "Product created successfully", populatedProduct);
 
   } catch (error) {
+    console.error(error);
     sendError(res, 500, error.message);
   }
 };
@@ -266,27 +271,47 @@ export const deleteProduct = async (req, res) => {
   }
 };
 
-export const getProductCategories = (req, res) => {
-  sendSuccess(res, 200, 'Product categories fetched', productCategories);
+export const getProductCategories = async (req, res) => {
+  try {
+    const categories = await Category.find();
+
+    sendSuccess(
+      res,
+      200,
+      "Product categories fetched",
+      categories
+    );
+
+  } catch (error) {
+    sendError(res, 500, error.message);
+  }
 };
 
-export const createCategory = (req, res) => {
-  const { name, description = '', color = 'None', active = true } = req.body;
+export const createCategory = async (req, res) => {
+  try {
+    const {
+      name,
+      description = "",
+      color = "None",
+      active = true,
+    } = req.body;
 
-  if (!name) {
-    return sendError(res, 400, 'Category name is required');
+    if (!name) {
+      return sendError(res, 400, "Category name is required");
+    }
+
+    const category = await Category.create({
+      name,
+      description,
+      color,
+      active,
+    });
+
+    sendSuccess(res, 201, "Category created", category);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
-
-  const newCategory = {
-    id: Date.now(),
-    name,
-    description,
-    color,
-    active
-  };
-
-  productCategories.push(newCategory);
-  sendSuccess(res, 201, 'Category created', newCategory);
 };
 
 export const getAddonGroups = (req, res) => {
