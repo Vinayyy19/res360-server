@@ -414,25 +414,75 @@ export const updateTableStatus = (req, res) => {
   sendSuccess(res, 200, 'Table status updated', found);
 };
 
-export const getKdsTickets = (req, res) => {
-  sendSuccess(res, 200, 'KDS tickets fetched', kdsTickets);
-};
-
-export const advanceKdsTicket = (req, res) => {
+export const getKdsTickets = async (req, res) => {
   try {
-    const ticket = advanceTicketById(kdsTickets, req.params.id);
-    sendSuccess(res, 200, 'Ticket advanced', ticket);
+    const tickets = await KdsTicket.find()
+      .sort({ createdAt: -1 });
+
+    sendSuccess(
+      res,
+      200,
+      'KDS tickets fetched',
+      tickets
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Ticket update failed');
+    console.error("KDS fetch error:", error);
+
+    sendError(
+      res,
+      500,
+      error.message
+    );
   }
 };
 
-export const toggleKdsItemCheck = (req, res) => {
+export const advanceKdsTicket = async (req, res) => {
   try {
-    const item = toggleTicketItemCheck(kdsTickets, req.params.id, req.params.itemId);
-    sendSuccess(res, 200, 'Item checked updated', item);
+    const ticket = await advanceTicketById(
+      req.params.id
+    );
+
+    sendSuccess(
+      res,
+      200,
+      'Ticket advanced',
+      ticket
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Item update failed');
+    console.error("KDS advance error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || 'Ticket update failed'
+    );
+  }
+};
+
+export const toggleKdsItemCheck = async (req, res) => {
+  try {
+    const ticket = await toggleTicketItemCheck(
+      req.params.id,
+      req.params.itemId
+    );
+
+    sendSuccess(
+      res,
+      200,
+      'Item checked updated',
+      ticket
+    );
+
+  } catch (error) {
+    console.error("KDS item update error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || 'Item update failed'
+    );
   }
 };
 
@@ -459,28 +509,84 @@ export const getSaleReport = (req, res) => {
   sendSuccess(res, 200, 'Sales report fetched', salesReport);
 };
 
-export const getOrders = (req, res) => {
-  sendSuccess(res, 200, 'Orders fetched', orders);
+export const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 });
+
+    sendSuccess(
+      res,
+      200,
+      'Orders fetched',
+      orders
+    );
+
+  } catch (error) {
+    console.error("Orders fetch error:", error);
+
+    sendError(
+      res,
+      500,
+      error.message
+    );
+  }
 };
 
-export const createOrder = (req, res) => {
+export const createOrder = async (req, res) => {
   try {
-    const { table, items = [], total = 0, orderType = 'Dine-in', customerName = '', sendKitchen = true } = req.body;
+    const {
+      restaurantId,
+      tableId = null,
+      userId = null,
+      table = "Takeaway",
+      items = [],
+      taxRate = 5,
+      discount = 0,
+      sendKitchen = true
+    } = req.body;
 
-    const { order, ticket } = createOrderAndTicket({
-      orders,
-      kdsTickets,
-      payload: { table, items, total, orderType, customerName, sendKitchen }
-    });
-
-    orders.unshift(order);
-    if (ticket) {
-      kdsTickets.unshift(ticket);
+    if (!restaurantId) {
+      return sendError(
+        res,
+        400,
+        "restaurantId is required"
+      );
     }
 
-    sendSuccess(res, 201, 'Order created', { order, ticket });
+    if (!items.length) {
+      return sendError(
+        res,
+        400,
+        "At least one item is required"
+      );
+    }
+
+    const result = await createOrderAndTicket({
+      restaurantId,
+      tableId,
+      userId,
+      table,
+      items,
+      taxRate,
+      discount,
+      sendKitchen
+    });
+
+    sendSuccess(
+      res,
+      201,
+      "Order created successfully",
+      result
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Order creation failed');
+    console.error("Order creation error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || "Order creation failed"
+    );
   }
 };
 
