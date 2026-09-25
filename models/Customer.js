@@ -1,15 +1,39 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const customerSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
-    loyalty: { type: String, enum: ['Silver', 'Gold', 'Platinum'], default: 'Silver' },
-    totalSpent: { type: Number, default: 0 },
-    visits: { type: Number, default: 0 }
+    restaurantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Restaurant",
+      required: true,
+    },
+
+    name: {
+      type: String,
+      required: true,
+    },
+
+    loyalty: {
+      type: String,
+      enum: ["Silver", "Gold", "Platinum"],
+      default: "Silver",
+    },
+
+    totalSpent: {
+      type: Number,
+      default: 0,
+    },
+
+    visits: {
+      type: Number,
+      default: 0,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
-const Customer = mongoose.model('Customer', customerSchema);
+const Customer = mongoose.model("Customer", customerSchema);
 
 export default Customer;

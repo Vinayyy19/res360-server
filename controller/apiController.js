@@ -1,7 +1,8 @@
 import { sendError, sendSuccess } from '../utils/response.js';
 import { createOrderAndTicket } from '../services/orderService.js';
 import { advanceTicketById, toggleTicketItemCheck } from '../services/kdsService.js';
-
+import Product from "../models/Product.js";
+import Category from "../models/Category.js";
 const menuData = [
   { id: 1, name: 'Paneer Tikka', category: 'Starters', type: 'Veg', price: 280 },
   { id: 2, name: 'Chicken 65', category: 'Starters', type: 'Non-Veg', price: 320 },
@@ -173,76 +174,144 @@ export const getMenuCategories = (req, res) => {
   sendSuccess(res, 200, 'Categories fetched', categories);
 };
 
-export const getProducts = (req, res) => {
-  sendSuccess(res, 200, 'Products fetched', { categories: productCategories, products });
-};
+export const getProducts = async (req, res) => {
+  try {
+    const products = await Product.find().populate("category");
 
-export const createProduct = (req, res) => {
-  const { name, category, price, active = true } = req.body;
+    const categories = await Category.find();
 
-  if (!name || !category || price === undefined || price === null || Number(price) <= 0) {
-    return sendError(res, 400, 'Product name, category, and valid price are required.');
+    sendSuccess(res, 200, "Products fetched", {
+      categories,
+      products,
+    });
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
-
-  const newProduct = {
-    id: Date.now(),
-    name,
-    initials: name.slice(0, 2).toUpperCase(),
-    badgeColor: '#14b8a6',
-    category,
-    active,
-    price: Number(price)
-  };
-
-  products.push(newProduct);
-  sendSuccess(res, 201, 'Product created successfully', newProduct);
 };
+export const createProduct = async (req, res) => {
+  try {
+    const {
+      name,
+      category,
+      price,
+      active = true,
+      sku = "",
+      barcode = "",
+      imageUrl = "",
+      tags = [],
+    } = req.body;
 
-export const updateProduct = (req, res) => {
-  const { id } = req.params;
-  const index = products.findIndex((item) => item.id === Number(id));
+    if (!name || !category || price === undefined) {
+      return sendError(res, 400, "Name, Category and Price are required.");
+    }
+    console.log("Request Body:", req.body);
+console.log("Category received:", category);
 
-  if (index === -1) {
-    return sendError(res, 404, 'Product not found');
+    const categoryExists = await Category.findById(category);
+
+    if (!categoryExists) {
+      return sendError(res, 400, "Invalid category selected.");
+    }
+
+    const product = await Product.create({
+      name,
+      initials: name.substring(0, 2).toUpperCase(),
+      badgeColor: "#14b8a6",
+      category: categoryExists._id,
+      price,
+      active,
+      sku,
+      barcode,
+      imageUrl,
+      tags,
+    });
+
+    const populatedProduct = await Product.findById(product._id).populate("category");
+
+    sendSuccess(res, 201, "Product created successfully", populatedProduct);
+
+  } catch (error) {
+    console.error(error);
+    sendError(res, 500, error.message);
   }
-
-  products[index] = { ...products[index], ...req.body };
-  sendSuccess(res, 200, 'Product updated', products[index]);
 };
 
-export const deleteProduct = (req, res) => {
-  const { id } = req.params;
-  const index = products.findIndex((item) => item.id === Number(id));
+export const updateProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
 
-  if (index === -1) {
-    return sendError(res, 404, 'Product not found');
+    if (!product) {
+      return sendError(res, 404, "Product not found");
+    }
+
+    sendSuccess(res, 200, "Product updated", product);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
-
-  const deleted = products.splice(index, 1)[0];
-  sendSuccess(res, 200, 'Product deleted', deleted);
 };
 
-export const getProductCategories = (req, res) => {
-  sendSuccess(res, 200, 'Product categories fetched', productCategories);
-};
+export const deleteProduct = async (req, res) => {
+  try {
+    const product = await Product.findByIdAndDelete(req.params.id);
 
-export const createCategory = (req, res) => {
-  const { name, description = '', color = 'None', active = true } = req.body;
+    if (!product) {
+      return sendError(res, 404, "Product not found");
+    }
 
-  if (!name) {
-    return sendError(res, 400, 'Category name is required');
+    sendSuccess(res, 200, "Product deleted", product);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
   }
+};
 
-  const newCategory = {
-    id: Date.now(),
-    name,
-    description,
-    color,
-    active
-  };
+export const getProductCategories = async (req, res) => {
+  try {
+    const categories = await Category.find();
 
-  productCategories.push(newCategory);
-  sendSuccess(res, 201, 'Category created', newCategory);
+    sendSuccess(
+      res,
+      200,
+      "Product categories fetched",
+      categories
+    );
+
+  } catch (error) {
+    sendError(res, 500, error.message);
+  }
+};
+
+export const createCategory = async (req, res) => {
+  try {
+    const {
+      name,
+      description = "",
+      color = "None",
+      active = true,
+    } = req.body;
+
+    if (!name) {
+      return sendError(res, 400, "Category name is required");
+    }
+
+    const category = await Category.create({
+      name,
+      description,
+      color,
+      active,
+    });
+
+    sendSuccess(res, 201, "Category created", category);
+
+  } catch (error) {
+    sendError(res, 500, error.message);
+  }
 };
 
 export const getAddonGroups = (req, res) => {
@@ -345,25 +414,75 @@ export const updateTableStatus = (req, res) => {
   sendSuccess(res, 200, 'Table status updated', found);
 };
 
-export const getKdsTickets = (req, res) => {
-  sendSuccess(res, 200, 'KDS tickets fetched', kdsTickets);
-};
-
-export const advanceKdsTicket = (req, res) => {
+export const getKdsTickets = async (req, res) => {
   try {
-    const ticket = advanceTicketById(kdsTickets, req.params.id);
-    sendSuccess(res, 200, 'Ticket advanced', ticket);
+    const tickets = await KdsTicket.find()
+      .sort({ createdAt: -1 });
+
+    sendSuccess(
+      res,
+      200,
+      'KDS tickets fetched',
+      tickets
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Ticket update failed');
+    console.error("KDS fetch error:", error);
+
+    sendError(
+      res,
+      500,
+      error.message
+    );
   }
 };
 
-export const toggleKdsItemCheck = (req, res) => {
+export const advanceKdsTicket = async (req, res) => {
   try {
-    const item = toggleTicketItemCheck(kdsTickets, req.params.id, req.params.itemId);
-    sendSuccess(res, 200, 'Item checked updated', item);
+    const ticket = await advanceTicketById(
+      req.params.id
+    );
+
+    sendSuccess(
+      res,
+      200,
+      'Ticket advanced',
+      ticket
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Item update failed');
+    console.error("KDS advance error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || 'Ticket update failed'
+    );
+  }
+};
+
+export const toggleKdsItemCheck = async (req, res) => {
+  try {
+    const ticket = await toggleTicketItemCheck(
+      req.params.id,
+      req.params.itemId
+    );
+
+    sendSuccess(
+      res,
+      200,
+      'Item checked updated',
+      ticket
+    );
+
+  } catch (error) {
+    console.error("KDS item update error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || 'Item update failed'
+    );
   }
 };
 
@@ -390,28 +509,84 @@ export const getSaleReport = (req, res) => {
   sendSuccess(res, 200, 'Sales report fetched', salesReport);
 };
 
-export const getOrders = (req, res) => {
-  sendSuccess(res, 200, 'Orders fetched', orders);
+export const getOrders = async (req, res) => {
+  try {
+    const orders = await Order.find()
+      .sort({ createdAt: -1 });
+
+    sendSuccess(
+      res,
+      200,
+      'Orders fetched',
+      orders
+    );
+
+  } catch (error) {
+    console.error("Orders fetch error:", error);
+
+    sendError(
+      res,
+      500,
+      error.message
+    );
+  }
 };
 
-export const createOrder = (req, res) => {
+export const createOrder = async (req, res) => {
   try {
-    const { table, items = [], total = 0, orderType = 'Dine-in', customerName = '', sendKitchen = true } = req.body;
+    const {
+      restaurantId,
+      tableId = null,
+      userId = null,
+      table = "Takeaway",
+      items = [],
+      taxRate = 5,
+      discount = 0,
+      sendKitchen = true
+    } = req.body;
 
-    const { order, ticket } = createOrderAndTicket({
-      orders,
-      kdsTickets,
-      payload: { table, items, total, orderType, customerName, sendKitchen }
-    });
-
-    orders.unshift(order);
-    if (ticket) {
-      kdsTickets.unshift(ticket);
+    if (!restaurantId) {
+      return sendError(
+        res,
+        400,
+        "restaurantId is required"
+      );
     }
 
-    sendSuccess(res, 201, 'Order created', { order, ticket });
+    if (!items.length) {
+      return sendError(
+        res,
+        400,
+        "At least one item is required"
+      );
+    }
+
+    const result = await createOrderAndTicket({
+      restaurantId,
+      tableId,
+      userId,
+      table,
+      items,
+      taxRate,
+      discount,
+      sendKitchen
+    });
+
+    sendSuccess(
+      res,
+      201,
+      "Order created successfully",
+      result
+    );
+
   } catch (error) {
-    sendError(res, error.statusCode || 400, error.message || 'Order creation failed');
+    console.error("Order creation error:", error);
+
+    sendError(
+      res,
+      error.statusCode || 400,
+      error.message || "Order creation failed"
+    );
   }
 };
 

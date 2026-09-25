@@ -17,6 +17,11 @@ const kdsTicketSchema = new mongoose.Schema(
     stage: { type: String, enum: ['new', 'preparing', 'ready'], default: 'new' },
     startTime: { type: Date, default: Date.now },
     notes: { type: String, default: '' },
+    orderId: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Order",
+  default: null
+},
     items: [kdsItemSchema]
   },
   { timestamps: true }
