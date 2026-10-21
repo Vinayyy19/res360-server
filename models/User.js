@@ -21,9 +21,15 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
+    restaurantName: {
+      type: String,
+      default: "Restaurant 360",
+      trim: true,
+    },
+
     role: {
       type: String,
-      enum: ["admin", "manager", "staff"],
+      enum: ["admin", "manager", "cashier", "kitchen", "waiter", "staff"],
       default: "staff",
     },
 
@@ -64,6 +70,16 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    resetPasswordToken: {
+      type: String,
+      default: null,
+    },
+
+    resetPasswordExpires: {
+      type: Date,
+      default: null,
+    },
+
     restaurantId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Restaurant",
@@ -74,6 +90,9 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+userSchema.index({ email: 1 });
+userSchema.index({ licenseKey: 1 });
 
 const User = mongoose.model("User", userSchema);
 
